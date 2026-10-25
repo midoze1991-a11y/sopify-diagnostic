@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etsy → Shopify Sales Diagnostic</title>
+<style>
+  :root{--bg:#faf8f5;--card:#fff;--ink:#1f2933;--muted:#6b7280;--accent:#2f6f4f;--accent-d:#245a40;--line:#e5e1da;--bad:#c2410c;--mid:#b7791f;--good:#2f6f4f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+  h1{font-size:1.6rem;line-height:1.25;margin:0 0 10px}
+  h2{font-size:1.2rem;margin:0 0 12px}
+  p{margin:0 0 14px}
+  .muted{color:var(--muted);font-size:.92rem}
+  .btn{display:block;width:100%;border:1px solid var(--line);background:#fff;color:var(--ink);padding:14px 16px;border-radius:10px;font-size:1rem;text-align:left;cursor:pointer;margin-bottom:10px}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;text-align:center;font-weight:600}
+  .btn.primary:hover{background:var(--accent-d)}
+  .progress{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:6px}
+  .progress>div{height:100%;background:var(--accent);width:0;transition:width .25s}
+  .cat{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:700;margin-bottom:8px}
+  .q{font-size:1.15rem;margin:0 0 18px}
+  .back{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:6px 0;margin-top:4px}
+  .score{text-align:center;margin:6px 0 18px}
+  .score .num{font-size:3.4rem;font-weight:800;line-height:1}
+  .score .lbl{color:var(--muted)}
+  .bar-row{margin:10px 0}
+  .bar-head{display:flex;justify-content:space-between;font-size:.92rem;margin-bottom:4px}
+  .bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar>div{height:100%}
+  .weak{border-left:4px solid var(--bad);background:#fff7f2;border-radius:8px;padding:12px 14px;margin:10px 0}
+  .weak strong{display:block;margin-bottom:4px}
+  .weak ul{margin:6px 0 0 18px;padding:0}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- START SCREEN -->
+  <div id="start" class="card">
+    <h1>Moved from Etsy to Shopify and sales stopped?</h1>
+    <p>Answer 18 quick questions about your store. You'll get a score out of 100, your 3 weakest areas, and what to fix first.</p>
+    <p class="muted">Takes about 3 minutes. Nothing is sent anywhere: your answers stay in your browser.</p>
+    <button class="btn primary" id="startBtn">Start the diagnostic</button>
+  </div>
+
+  <!-- QUESTION SCREEN -->
+  <div id="quiz" class="card hidden">
+    <div class="progress"><div id="bar"></div></div>
+    <div class="muted" id="counter" style="margin-bottom:14px"></div>
+    <div class="cat" id="cat"></div>
+    <p class="q" id="question"></p>
+    <button class="btn" data-v="2">Yes</button>
+    <button class="btn" data-v="1">Partly</button>
+    <button class="btn" data-v="0">No</button>
+    <button class="back" id="backBtn">← Previous question</button>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="result" class="card hidden">
+    <h2>Your result</h2>
+    <div class="score"><div class="num" id="scoreNum"></div><div class="lbl">out of 100</div></div>
+    <p id="verdict"></p>
+    <h2>Score by area</h2>
+    <div id="bars"></div>
+    <h2 style="margin-top:22px">Fix these first</h2>
+    <div id="weakList"></div>
+    <button class="btn primary" id="restartBtn" style="margin-top:16px">Retake the diagnostic</button>
+  </div>
+
+</div>
+
+<script>
+/* ============ EDIT YOUR CONTENT HERE ============ */
+const CATEGORIES = [
+  {
+    id: "trust", name: "Trust",
+    questions: [
+      "Does your store show real customer reviews (on-site or via a reviews app)?",
+      "Do you have a clear return/refund policy page linked in the footer?",
+      "Do you have an About page with your story and a real photo or contact info?"
+    ],
+    tips: [
+      "Install a reviews app and import your Etsy reviews where the rules allow; ask recent buyers for a review.",
+      "Publish a plain-language return policy and link it in the footer and on product pages.",
+      "Add a real photo, your story, and a visible contact email: new stores need to feel like real people."
+    ]
+  },
+  {
+    id: "traffic", name: "Traffic quality",
+    questions: [
+      "Do you know which traffic source (Pinterest, ads, email…) brings buyers, not just visitors?",
+      "Is your traffic going to specific product pages rather than only the homepage?",
+      "Are you getting at least some visitors who searched for what you sell (not just browsing)?"
+    ],
+    tips: [
+      "Check Shopify Analytics: compare conversion rate by source, not only visits.",
+      "Point each ad or pin to the exact product page, not the homepage.",
+      "Browsing traffic (e.g. Pinterest) converts slowly: add email capture and test search-intent traffic too."
+    ]
+  },
+  {
+    id: "seo", name: "SEO",
+    questions: [
+      "Do your product titles include the words buyers actually search for?",
+      "Does every product have a unique description (not copied from Etsy)?",
+      "Have you set meta titles/descriptions and image alt text?"
+    ],
+    tips: [
+      "Rewrite titles with the phrases buyers search (e.g. 'handmade silver ring for women'), not only your product name.",
+      "Write unique descriptions: duplicate text from Etsy can hurt your search visibility.",
+      "Fill in the 'Search engine listing' fields and add alt text to every product image."
+    ]
+  },
+  {
+    id: "page", name: "Product page",
+    questions: [
+      "Do you have at least 4–5 clear photos per product (including in-use shots)?",
+      "Does the description answer size, material, shipping time, and care?",
+      "Is the price clearly justified compared to what buyers saw on Etsy?"
+    ],
+    tips: [
+      "Add lifestyle and in-use photos, plus a size/scale shot.",
+      "Answer the questions buyers ask before buying: size, material, shipping time, care.",
+      "Explain your value (handmade, quality, guarantee) so the price feels fair outside Etsy's marketplace."
+    ]
+  },
+  {
+    id: "checkout", name: "Checkout & speed",
+    questions: [
+      "Does your store load in under 3 seconds on mobile?",
+      "Do you offer familiar payment options (PayPal, Apple Pay, card)?",
+      "Is shipping cost and delivery time visible before checkout?"
+    ],
+    tips: [
+      "Compress images and remove unused apps; test your store speed on mobile.",
+      "Enable PayPal, Shop Pay, and Apple/Google Pay: unfamiliar checkouts lose buyers.",
+      "Show shipping cost and delivery time on the product page, not only at checkout."
+    ]
+  },
+  {
+    id: "customers", name: "Customers & email",
+    questions: [
+      "Did you tell your past Etsy customers about your new store (within Etsy's rules)?",
+      "Do you have an email signup (discount or freebie) on your store?",
+      "Do you send an abandoned-cart or follow-up email?"
+    ],
+    tips: [
+      "Let past buyers know about your store through channels you own (social, packaging inserts), following Etsy's rules.",
+      "Add an email signup with a small incentive: it turns browsers into a list you own.",
+      "Turn on abandoned-cart emails: they recover sales from visitors who were already interested."
+    ]
+  }
+];
+/* ================================================= */
+
+const QUESTIONS = [];
+CATEGORIES.forEach((c, ci) => c.questions.forEach(q => QUESTIONS.push({ q, ci })));
+
+let idx = 0;
+let answers = [];
+
+const $ = id => document.getElementById(id);
+const show = id => { ["start","quiz","result"].forEach(s => $(s).classList.add("hidden")); $(id).classList.remove("hidden"); window.scrollTo(0,0); };
+
+function render(){
+  const item = QUESTIONS[idx];
+  $("counter").textContent = "Question " + (idx+1) + " of " + QUESTIONS.length;
+  $("cat").textContent = CATEGORIES[item.ci].name;
+  $("question").textContent = item.q;
+  $("bar").style.width = (idx / QUESTIONS.length * 100) + "%";
+  $("backBtn").style.visibility = idx === 0 ? "hidden" : "visible";
+}
+
+function answer(v){
+  answers[idx] = v;
+  if (idx < QUESTIONS.length - 1){ idx++; render(); }
+  else showResult();
+}
+
+function colorFor(pct){ return pct >= 70 ? "var(--good)" : pct >= 40 ? "var(--mid)" : "var(--bad)"; }
+
+function showResult(){
+  const max = QUESTIONS.length * 2;
+  const total = answers.reduce((a,b) => a + b, 0);
+  const score = Math.round(total / max * 100);
+
+  const perCat = CATEGORIES.map((c, ci) => {
+    let sum = 0, cnt = 0;
+    QUESTIONS.forEach((q, i) => { if (q.ci === ci){ sum += answers[i]; cnt++; } });
+    return { ...c, ci, pct: Math.round(sum / (cnt * 2) * 100) };
+  });
+
+  $("scoreNum").textContent = score;
+  $("scoreNum").style.color = colorFor(score);
+  $("verdict").textContent =
+    score >= 75 ? "Your fundamentals are strong. Focus on testing traffic sources and conversion details." :
+    score >= 50 ? "You have a base, but several gaps are likely costing you sales. Start with the areas below." :
+                  "Several basics are missing. These gaps are very likely why visitors aren't buying yet.";
+
+  $("bars").innerHTML = perCat.map(c =>
+    '<div class="bar-row"><div class="bar-head"><span>' + c.name + '</span><span>' + c.pct + '%</span></div>' +
+    '<div class="bar"><div style="width:' + c.pct + '%;background:' + colorFor(c.pct) + '"></div></div></div>'
+  ).join("");
+
+  const weakest = [...perCat].sort((a,b) => a.pct - b.pct).slice(0,3);
+  $("weakList").innerHTML = weakest.map(c => {
+    // one tip per question answered below "Yes"
+    const tips = [];
+    let n = 0;
+    QUESTIONS.forEach((q, i) => {
+      if (q.ci === c.ci){ if (answers[i] < 2) tips.push(c.tips[n]); n++; }
+    });
+    const list = tips.length ? tips : ["This area looks solid. Keep it up and re-check it every month."];
+    return '<div class="weak"><strong>' + c.name + ' (' + c.pct + '%)</strong><ul>' +
+      list.map(t => '<li>' + t + '</li>').join("") + '</ul></div>';
+  }).join("");
+
+  $("bar").style.width = "100%";
+  show("result");
+}
+
+$("startBtn").onclick = () => { idx = 0; answers = []; render(); show("quiz"); };
+$("backBtn").onclick = () => { if (idx > 0){ idx--; render(); } };
+$("restartBtn").onclick = () => { idx = 0; answers = []; render(); show("start"); };
+document.querySelectorAll("#quiz .btn[data-v]").forEach(b => b.onclick = () => answer(Number(b.dataset.v)));
+</script>
+</body>
+</html>
