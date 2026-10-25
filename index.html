@@ -33,6 +33,15 @@
   .weak{border-left:4px solid var(--bad);background:#fff7f2;border-radius:8px;padding:12px 14px;margin:10px 0}
   .weak strong{display:block;margin-bottom:4px}
   .weak ul{margin:6px 0 0 18px;padding:0}
+  .offer{margin-top:22px;border:2px solid var(--accent);border-radius:14px;padding:20px;background:#f3faf6}
+  .offer h2{margin-bottom:8px}
+  .offer ul{margin:8px 0 14px 18px;padding:0}
+  .offer .price{font-size:1.6rem;font-weight:800;margin:6px 0 12px}
+  .offer a.btn{text-decoration:none}
+  .locked{filter:blur(5px);user-select:none;pointer-events:none}
+  .lock{font-size:.8rem;color:var(--bad);font-weight:700;margin-left:6px}
+  .spinner{width:44px;height:44px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:10px auto 18px;animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
   .hidden{display:none}
 </style>
 </head>
@@ -59,6 +68,13 @@
     <button class="back" id="backBtn">← Previous question</button>
   </div>
 
+  <!-- ANALYZING SCREEN -->
+  <div id="loading" class="card hidden" style="text-align:center">
+    <div class="spinner"></div>
+    <h2>Analyzing your store…</h2>
+    <p class="muted">Scoring 6 areas and finding your 3 biggest sales blockers.</p>
+  </div>
+
   <!-- RESULT SCREEN -->
   <div id="result" class="card hidden">
     <h2>Your result</h2>
@@ -66,9 +82,21 @@
     <p id="verdict"></p>
     <h2>Score by area</h2>
     <div id="bars"></div>
-    <h2 style="margin-top:22px">Fix these first</h2>
+    <h2 style="margin-top:22px">Your 3 priority fixes</h2>
     <div id="weakList"></div>
-    <button class="btn primary" id="restartBtn" style="margin-top:16px">Retake the diagnostic</button>
+    <div class="offer">
+      <h2>Unlock your full fix plan (Recovery Kit)</h2>
+      <p id="offerLead"></p>
+      <ul>
+        <li>A week-by-week 4-week action plan with a checklist you can tick off</li>
+        <li>3 ready-to-use templates: customer announcement email, return policy, product description</li>
+        <li>Step-by-step fixes for Trust, Product pages, SEO and Email</li>
+      </ul>
+      <div class="price" id="offerPrice"></div>
+      <a class="btn primary" id="buyBtn" href="#" target="_blank" rel="noopener">Get the Recovery Kit</a>
+      <p class="muted" style="margin:0">One-time payment. Instant download after purchase.</p>
+    </div>
+    <button class="btn" id="restartBtn" style="margin-top:16px">Retake the diagnostic</button>
   </div>
 
 </div>
@@ -157,6 +185,11 @@ const CATEGORIES = [
 ];
 /* ================================================= */
 
+/* ===== OFFER SETTINGS: replace the link with your Gumroad product URL ===== */
+const GUMROAD_URL = "https://YOURNAME.gumroad.com/l/YOUR-PRODUCT";
+const PRICE_TEXT = "$12";
+/* ======================================================================== */
+
 const QUESTIONS = [];
 CATEGORIES.forEach((c, ci) => c.questions.forEach(q => QUESTIONS.push({ q, ci })));
 
@@ -164,7 +197,7 @@ let idx = 0;
 let answers = [];
 
 const $ = id => document.getElementById(id);
-const show = id => { ["start","quiz","result"].forEach(s => $(s).classList.add("hidden")); $(id).classList.remove("hidden"); window.scrollTo(0,0); };
+const show = id => { ["start","quiz","loading","result"].forEach(s => $(s).classList.add("hidden")); $(id).classList.remove("hidden"); window.scrollTo(0,0); };
 
 function render(){
   const item = QUESTIONS[idx];
@@ -178,7 +211,7 @@ function render(){
 function answer(v){
   answers[idx] = v;
   if (idx < QUESTIONS.length - 1){ idx++; render(); }
-  else showResult();
+  else { $("bar").style.width = "100%"; show("loading"); setTimeout(showResult, 1800); }
 }
 
 function colorFor(pct){ return pct >= 70 ? "var(--good)" : pct >= 40 ? "var(--mid)" : "var(--bad)"; }
@@ -207,17 +240,25 @@ function showResult(){
   ).join("");
 
   const weakest = [...perCat].sort((a,b) => a.pct - b.pct).slice(0,3);
-  $("weakList").innerHTML = weakest.map(c => {
-    // one tip per question answered below "Yes"
-    const tips = [];
-    let n = 0;
-    QUESTIONS.forEach((q, i) => {
-      if (q.ci === c.ci){ if (answers[i] < 2) tips.push(c.tips[n]); n++; }
-    });
-    const list = tips.length ? tips : ["This area looks solid. Keep it up and re-check it every month."];
-    return '<div class="weak"><strong>' + c.name + ' (' + c.pct + '%)</strong><ul>' +
-      list.map(t => '<li>' + t + '</li>').join("") + '</ul></div>';
-  }).join("");
+  // The real tips stay out of the page until purchase: locked rows use filler text only.
+  const FILLER = [
+    "Step-by-step fix to apply this week and recover lost sales",
+    "The exact setting to change and where to find it in Shopify",
+    "A ready-made template you can copy and paste"
+  ];
+  $("weakList").innerHTML = weakest.map(c =>
+    '<div class="weak"><strong>' + c.name + ' (' + c.pct + '%) <span class="lock">🔒 Locked</span></strong>' +
+    '<ul class="locked">' + FILLER.map(t => '<li>' + t + '</li>').join("") + '</ul></div>'
+  ).join("");
+
+  // Put the offer right under the score, so it is the first thing after the result.
+  $("verdict").after(document.querySelector(".offer"));
+
+  $("offerLead").textContent = "Your weakest areas are " + weakest.map(c => c.name).join(", ") +
+    ". Unlock the exact steps and templates to fix them, in the right order.";
+  $("offerPrice").textContent = PRICE_TEXT;
+  $("buyBtn").href = GUMROAD_URL;
+  $("buyBtn").textContent = "Unlock my full fix plan · " + PRICE_TEXT;
 
   $("bar").style.width = "100%";
   show("result");
